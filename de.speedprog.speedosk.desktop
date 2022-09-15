@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=SpeedOSK
+Comment=A virtual keyboard for Controller.
+TryExec=/usr/bin/speedosk
+Exec=speedosk
+Type=Application
+Icon=de.speedprog.speedosk
+Categories=Utility;Accessibility;
+Terminal=false
+StartupNotify=true
+
