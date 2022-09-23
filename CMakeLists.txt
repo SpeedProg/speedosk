@@ -1,5 +1,5 @@
 cmake_minimum_required( VERSION 3.6 )
-project( speedosk )
+project( speedprog-speedosk )
 
 add_definitions( -Wall )
 

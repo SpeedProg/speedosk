@@ -19,6 +19,7 @@
 #ifndef SPEEDOSK_H_
 #define SPEEDOSK_H_
 #include <SDL2/SDL.h>
+
 class SpeedOSK {
 public:
 	SpeedOSK();
@@ -26,9 +27,11 @@ public:
 	int Run();
 private:
 	SDL_Joystick *stick;
+	bool level_mode_steps;
 	void InitSDL();
 	void SetupJoystick();
 	void HandleEvents();
+	void LoadSettings();
 };
 
 #endif /* SPEEDOSK_H_ */

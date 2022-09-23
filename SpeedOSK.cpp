@@ -17,10 +17,13 @@
  */
 
 #include <iostream>
+#include <fstream>
+#include <cstdlib>
 #include "SpeedOSK.h"
 #include "SpeedOSKBoard.h"
 
 SpeedOSK::SpeedOSK() {
+	this->LoadSettings();
 	this->InitSDL();
 	this->SetupJoystick();
 }
@@ -33,9 +36,12 @@ int SpeedOSK::Run() {
 	SpeedOSKBoard osk;
 	SDL_bool done = SDL_FALSE;
 	SDL_Event event;
-	int ZONE_1 = 32767/3-3000;
+	int ZONE_1 = 32767/2;
 	int height_zone = 1; // 0 = top, 1 = middle, 2 = bottom
 	int width_zone = 1; // 0 = left, 1 = moddle, 2 = right
+	int current_board_level = 0;
+	bool left_trigger_down = false;
+	bool right_trigger_down = false;
 	int lastzone = 4;
 	int lwv = 1;
 	int lhv = 1;
@@ -82,16 +88,34 @@ int SpeedOSK::Run() {
 					}
 					lwv = event.jaxis.value;
 				} else if(event.jaxis.axis == 2) {
-					if (event.jaxis.value > 10000) {
-						osk.ChangeLevel(1);
-					} else {
-						osk.ChangeLevel(0);
+					if (event.jaxis.value > 10000 && !left_trigger_down) {
+						left_trigger_down = true;
+						if(this->level_mode_steps) {
+							if(current_board_level <= 1)
+								++current_board_level;
+							osk.ChangeLevel(current_board_level);
+						}else {
+							osk.ChangeLevel(1);
+						}
+					} else if (event.jaxis.value <= 10000 && left_trigger_down){
+						left_trigger_down = false;
+						if (!this->level_mode_steps)
+							osk.ChangeLevel(0);
 					}
 				} else if(event.jaxis.axis == 5) {
-					if (event.jaxis.value > 10000) {
-						osk.ChangeLevel(2);
-					} else {
-						osk.ChangeLevel(0);
+					if (event.jaxis.value > 10000 && !right_trigger_down) {
+						right_trigger_down = true;
+						if (this->level_mode_steps) {
+							if (current_board_level >= 1)
+								--current_board_level;
+							osk.ChangeLevel(current_board_level);
+						} else {
+							osk.ChangeLevel(2);
+						}
+					} else if (event.jaxis.value <= 10000 && right_trigger_down) {
+						right_trigger_down = false;
+						if(!this->level_mode_steps)
+							osk.ChangeLevel(0);
 					}
 				}
 				if (height_zone * 3 + width_zone != lastzone) {
@@ -136,9 +160,21 @@ int SpeedOSK::Run() {
 					break;
 				}
 				break;
+				case SDL_JOYDEVICEREMOVED:
+					if (this->stick && event.jdevice.which == SDL_JoystickInstanceID(this->stick)) {
+						SDL_JoystickClose(this->stick);
+						this->stick = NULL;
+					}
+					break;
+				case SDL_JOYDEVICEADDED:
+					if (!this->stick) {
+						this->stick = SDL_JoystickOpen(event.jdevice.which);
+					}
+					break;
 				default:
 					break;
 			}
+
 			osk.Draw();
 		}
 	}
@@ -160,5 +196,37 @@ void SpeedOSK::SetupJoystick() {
 	} else {
 		SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "No Joystick found, exiting");
 		exit(1); // we can not work without one
+	}
+}
+
+void SpeedOSK::LoadSettings() {
+	this->level_mode_steps = false;
+	const char* home = std::getenv("HOME");
+	if (home == NULL) {
+		return;
+	}
+
+	std::string config_file = std::string(home) + "/.config/speedosk/config";
+	std::ifstream config(config_file);
+
+	if (config.fail()) {
+		std::cerr << "Error: " << strerror(errno);
+		return;
+	}
+
+	if (config.is_open()) {
+		for(std::string name; std::getline(config, name, '='); ) {
+			std::string value;
+			if (std::getline(config, value)) {
+				if (name == "level_mode") {
+					if (value == "steps") {
+						this->level_mode_steps = true;
+					}
+				}
+			} else {
+				SDL_LogError(SDL_LOG_CATEGORY_ERROR, "Config file is faulty");
+				break;
+			}
+		}
 	}
 }
